@@ -1,0 +1,24 @@
+# API keys and secrets — NEVER commit these
+.streamlit/secrets.toml
+
+# Python cache files — generated automatically, not needed in the repo
+__pycache__/
+*.pyc
+*.pyo
+.Python
+
+# Virtual environment folder — if you create one locally
+venv/
+env/
+.env
+
+# ChromaDB stores data here if it ever persists to disk
+chroma/
+chroma.sqlite3
+
+# Mac OS junk files
+.DS_Store
+
+# IDE files
+.vscode/
+.idea/
