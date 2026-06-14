@@ -137,8 +137,8 @@ def main():
 
         /* Sidebar */
         [data-testid="stSidebar"] {
-            background-color: #171717;
-            border-right: 1px solid #2a2a2a;
+            background-color: #000000;
+            border-right: 1px solid #1f1f1f;
         }
         [data-testid="stSidebar"] * {
             color: #d1d5db !important;
@@ -223,8 +223,19 @@ def main():
         }
 
         /* Main area background */
-        .stApp {
-            background-color: #212121;
+        .stApp,
+        [data-testid="stAppViewContainer"],
+        [data-testid="stMain"],
+        [data-testid="stHeader"],
+        .main .block-container {
+            background-color: #000000 !important;
+        }
+
+        /* Bottom container that wraps the chat input */
+        [data-testid="stBottom"],
+        [data-testid="stBottomBlockContainer"],
+        [data-testid="stBottom"] > div {
+            background-color: #000000 !important;
         }
 
         /* Chat messages */
@@ -288,8 +299,8 @@ def main():
 
         /* Chat input */
         [data-testid="stChatInput"] {
-            background: #2f2f2f !important;
-            border: 1px solid #3a3a3a !important;
+            background: #000000 !important;
+            border: 1px solid #2a2a2a !important;
             border-radius: 12px !important;
             max-width: 48rem !important;
             margin: 0 auto !important;
