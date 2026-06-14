@@ -163,7 +163,7 @@ def main():
 
         /* Sidebar buttons — example questions */
         [data-testid="stSidebar"] .stButton > button {
-            background: transparent !important;
+            background: #1a1a1a !important;
             border: 1px solid #2a2a2a !important;
             color: #9ca3af !important;
             font-size: 0.78rem !important;
@@ -177,9 +177,49 @@ def main():
             line-height: 1.4 !important;
         }
         [data-testid="stSidebar"] .stButton > button:hover {
-            background: #1f1f1f !important;
+            background: #2a2a2a !important;
             border-color: #3a3a3a !important;
             color: #e5e7eb !important;
+        }
+        [data-testid="stSidebar"] .stButton > button:focus:not(:active) {
+            background: #1a1a1a !important;
+            color: #9ca3af !important;
+            box-shadow: none !important;
+        }
+        /* Sidebar expanders — document viewer */
+        [data-testid="stSidebar"] .streamlit-expanderHeader {
+            background: #1a1a1a !important;
+            border: 1px solid #2a2a2a !important;
+            border-radius: 6px !important;
+            color: #9ca3af !important;
+            font-size: 0.78rem !important;
+            padding: 0.4rem 0.6rem !important;
+            margin-bottom: 2px !important;
+        }
+        [data-testid="stSidebar"] .streamlit-expanderHeader:hover {
+            background: #2a2a2a !important;
+            color: #e5e7eb !important;
+        }
+        [data-testid="stSidebar"] .streamlit-expanderHeader p {
+            color: inherit !important;
+            font-size: 0.78rem !important;
+        }
+        [data-testid="stSidebar"] .streamlit-expanderContent {
+            background: #111111 !important;
+            border: 1px solid #2a2a2a !important;
+            border-top: none !important;
+            border-radius: 0 0 6px 6px !important;
+            padding: 0.6rem !important;
+            margin-bottom: 2px !important;
+        }
+        [data-testid="stSidebar"] .streamlit-expanderContent p,
+        [data-testid="stSidebar"] .streamlit-expanderContent li {
+            color: #9ca3af !important;
+            font-size: 0.75rem !important;
+            line-height: 1.6 !important;
+        }
+        [data-testid="stSidebar"] .streamlit-expanderContent strong {
+            color: #d1d5db !important;
         }
 
         /* Main area background */
@@ -312,23 +352,31 @@ def main():
         st.divider()
 
         st.markdown("### Documents")
-        doc_names = [
-            "01 · Company Overview",
-            "02 · FY2025 Financials",
-            "03 · FY2024 Financials",
-            "04 · FY2023 & Historical",
-            "05 · Charges Register",
-            "06 · Ownership & Management",
-            "07 · News & Events",
-            "08 · Subsidiary Accounts Note",
-            "09 · Lender Risks",
-            "10 · Credit Summary",
-            "11 · Bain Capital Acquisition",
-            "12 · Sale Process & Valuation",
-            "13 · Dataroom Index",
+        # Map display name → filename in the dataroom folder
+        doc_map = [
+            ("01 · Company Overview",        "01_company_overview.md"),
+            ("02 · FY2025 Financials",       "02_financials_fy2025.md"),
+            ("03 · FY2024 Financials",       "03_financials_fy2024.md"),
+            ("04 · FY2023 & Historical",     "04_financials_fy2023_historical.md"),
+            ("05 · Charges Register",        "05_charges_register.md"),
+            ("06 · Ownership & Management",  "06_ownership_management.md"),
+            ("07 · News & Events",           "07_news_events.md"),
+            ("08 · Subsidiary Accounts Note","08_subsidiary_accounts_note.md"),
+            ("09 · Lender Risks",            "09_lender_risks.md"),
+            ("10 · Credit Summary",          "10_credit_summary.md"),
+            ("11 · Bain Capital Acquisition","11_bain_capital_acquisition.md"),
+            ("12 · Sale Process & Valuation","12_sale_process_valuation.md"),
+            ("13 · Dataroom Index",          "13_dataroom_index.md"),
         ]
-        for name in doc_names:
-            st.markdown(f"<small>{name}</small>", unsafe_allow_html=True)
+        for display_name, filename in doc_map:
+            filepath = os.path.join(DATAROOM_DIR, filename)
+            with st.expander(display_name):
+                try:
+                    with open(filepath, "r", encoding="utf-8") as f:
+                        content = f.read()
+                    st.markdown(content)
+                except Exception:
+                    st.markdown("_Document not found._")
 
         st.divider()
         st.markdown("### Try asking")
