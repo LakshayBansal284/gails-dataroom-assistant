@@ -7,39 +7,68 @@
 
 The task has two parts: build a structured dataroom, then build an AI assistant over it.
 
-For the **dataroom**, I sourced 13 documents from Companies House, Grain Topco's filed consolidated accounts (FY2023–FY2025), and attributed press coverage. The filing entity GAIL'S LIMITED files as an audit-exempt subsidiary, which means its standalone accounts contain minimal P&L data. The commercially meaningful financials live at the Grain Topco parent level — recognising this distinction was the most important analytical decision in building the dataroom.
+For the **dataroom**, I sourced 13 documents from Companies House, Grain Topco's filed
+consolidated accounts (FY2023–FY2025), and attributed press coverage. The key analytical
+decision was recognising that GAIL'S LIMITED files as an audit-exempt subsidiary — its
+standalone accounts show only ~£636k EBITDA due to intercompany transfer pricing. The
+commercially meaningful financials are at Grain Topco parent level. The dataroom is built
+around group-level figures accordingly.
 
-For the **assistant**, I implemented a RAG (Retrieval Augmented Generation) pipeline rather than prompt-stuffing the full dataroom into every call. The architecture is: chunk → embed → store → retrieve → generate.
+For the **assistant**, I used full-context retrieval rather than RAG.
 
 ---
 
 ## Key Technical Decisions
 
-**1. RAG over prompt-stuffing**
-The full dataroom is approximately 25,000 words — within Claude's context window, but sending it all on every query is wasteful and imprecise. RAG retrieves only the 5 most semantically relevant chunks per question. More importantly, it grounds financial figures in specific source passages, making hallucination much harder.
+**1. Full-context over RAG**
 
-**2. Anthropic Voyage embeddings**
-I used the `voyage-3` embedding model via Anthropic's API. This keeps the entire stack on one API key and one provider. Voyage-3 is specifically optimised for retrieval tasks and outperforms generic embedding models on document search benchmarks.
+The entire dataroom is ~7,500 words. Claude's context window is 200,000 tokens.
+The dataroom fits in under 5% of the available context.
 
-**3. ChromaDB in-memory**
-For a 13-document dataroom producing approximately 120 chunks, an in-memory vector database is entirely sufficient. Using ChromaDB in-memory avoids any external service dependency, keeps the deployment to a single file, and starts in seconds. At production scale (thousands of documents), I would migrate to a persistent store.
+RAG (chunking, embedding, vector search) exists to solve a scale problem — when your
+knowledge base is too large to fit in a prompt. That problem does not exist here.
+Sending the complete dataroom on every query means:
+- Claude always has access to every document simultaneously
+- Financial figures are always read from the actual source text
+- No embedding model, no vector database, no second API key
+- Nothing to break during a live demo
+- Startup is instant (just reading text files, no API calls)
 
-**4. Source citation enforced via system prompt**
-Claude is instructed to attach `[Source: filename]` to every factual claim and to say "the dataroom does not contain this information" rather than guess. Financial figures are required to be quoted exactly as they appear in source documents — not rounded or approximated unless the source itself uses that language.
+This is a deliberate architectural choice, not a shortcut.
 
-**5. Chunk size of 400 words with 50-word overlap**
-This size balances precision (small enough to retrieve a specific figure) with context (large enough that the surrounding sentence is preserved). Overlap prevents key sentences at chunk boundaries from being split across two chunks with neither containing the full context.
+**2. Source citation enforced via system prompt**
+
+Claude is instructed to attach [Source: filename.md] to every factual claim and to say
+"the dataroom does not contain sufficient information" rather than guess. Financial figures
+must be quoted exactly as they appear — not rounded or approximated.
+
+**3. Conversation memory**
+
+Prior turns are passed back to Claude on each call, allowing follow-up questions
+("and how does that compare to FY2024?") without the user needing to repeat context.
+
+**4. Single API key, single service**
+
+The entire stack runs on one Anthropic key. No secondary services, no configuration
+complexity, nothing to rotate or manage separately.
 
 ---
 
 ## What I Would Develop Further
 
-**Hybrid search** — combining the current semantic similarity search with keyword/BM25 search. For exact figure lookups ("£53.6m"), keyword matching is more reliable than semantic search.
+**Hybrid search for scale** — if the dataroom grew to hundreds of documents, I would
+introduce RAG at that point: chunk, embed with Voyage-3, store in ChromaDB, retrieve
+top-k per query. The current architecture would not scale beyond ~50,000 words.
 
-**PDF ingestion pipeline** — the current dataroom uses structured markdown transcriptions. Ingesting the actual Companies House PDFs directly (using pdfplumber or pypdf) would remove the transcription step and allow the dataroom to be refreshed from filed documents automatically.
+**PDF ingestion pipeline** — ingest Companies House PDFs directly using pdfplumber,
+rather than transcribed markdown. Would allow automatic refresh when new filings appear.
 
-**Conversation memory** — currently each question is answered independently. Adding prior turns to the message history would allow follow-up questions ("and how does that compare to FY2024?").
+**Structured data layer** — store key financial tables as JSON alongside the text.
+For exact figure lookups, querying structured data is more reliable than asking an LLM
+to extract a number from prose.
 
-**Persistent vector store** — saving the ChromaDB index to disk would eliminate the ~15-second cold-start rebuild on each deployment restart.
+**Streaming responses** — use Claude's streaming API so the answer appears word by word
+rather than after a delay. Better user experience for longer answers like credit summaries.
 
-**Structured data extraction** — key financial tables (three-year P&L, charges register) should be stored as structured JSON alongside the text chunks, enabling the assistant to answer table-lookup questions with guaranteed numerical precision.
+**Document refresh alert** — a daily script checking Companies House for new filings
+(confirmation statements, new accounts) and flagging when the dataroom is out of date.
