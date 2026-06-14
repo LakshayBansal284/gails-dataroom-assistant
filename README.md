@@ -91,54 +91,18 @@ only ~£636k EBITDA — an artefact of intercompany transfer pricing with The Br
 Factory manufacturing entity. All financial analysis uses Grain Topco consolidated
 accounts, which is the correct basis for credit underwriting. Document 08 explains
 this distinction explicitly so the assistant can surface it when relevant.
-
----
-
-## Running Locally
-
-```bash
-# 1. Clone the repo
-git clone https://github.com/LakshayBansal284/gails-dataroom-assisstant
-cd gails-dataroom-assisstant
-
-# 2. Install dependencies
-pip install -r requirements.txt
-
-# 3. Add your Anthropic API key
-mkdir .streamlit
-echo 'ANTHROPIC_API_KEY = "sk-ant-your-key-here"' > .streamlit/secrets.toml
-
-# 4. Run
-streamlit run app.py
-```
-
-Opens at http://localhost:8501
-
----
-
-## Deploying to Streamlit Cloud
-
-1. Push repo to GitHub (public)
-2. Go to share.streamlit.io → sign in with GitHub → New app
-3. Select this repo → Main file: `app.py`
-4. Advanced settings → Secrets → add:
-   ```toml
-   ANTHROPIC_API_KEY = "sk-ant-your-key-here"
-   ```
-5. Deploy — live URL ready in ~2 minutes
-
 ---
 
 ## Tech Stack
 
-| Component | Tool | Cost |
-|-----------|------|------|
-| LLM | Anthropic Claude (claude-sonnet-4-6) | Free tier / low cost |
-| Web framework | Streamlit | Free |
-| Deployment | Streamlit Cloud | Free |
-| Vector DB | None needed | — |
-| Embeddings | None needed | — |
-| Total | | ~£0 |
+| Component | Tool |
+|-----------|------|
+| LLM | Anthropic Claude (claude-sonnet-4-6) 
+| Web framework | Streamlit |
+| Deployment | Streamlit Cloud |
+| Vector DB | None needed |
+| Embeddings | None needed |
+| Total | |
 
 ---
 
