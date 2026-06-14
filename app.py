@@ -4,17 +4,10 @@ GAIL's Bakery — Dataroom AI Assistant
 Golborne Capital AI Engineer Case Study
 
 Architecture: Full-context retrieval
-  - All 13 dataroom documents are loaded at startup (~7,000 words total)
+  - All 13 dataroom documents loaded at startup (~7,000 words)
   - Every question sends the complete dataroom to Claude as context
   - No embeddings, no vector database, no second API key needed
   - One service (Anthropic), one key, nothing to break
-
-Why not RAG?
-  - The dataroom is ~7,500 words — under 5% of Claude's 200k context window
-  - RAG solves a scale problem that doesn't exist here
-  - Full context means Claude always has every document available
-  - Financial figures are always sourced from the actual filed text
-  - Simpler architecture = more reliable in production and in a live demo
 """
 
 import os
@@ -33,8 +26,6 @@ MAX_TOKENS   = 1500
 # ─────────────────────────────────────────────────────────
 # LOAD DOCUMENTS
 # ─────────────────────────────────────────────────────────
-# Read every .md file in the dataroom/ folder.
-# Returns a list of dicts with filename, title, and content.
 
 def load_documents(dataroom_dir: str) -> list[dict]:
     documents = []
@@ -52,13 +43,9 @@ def load_documents(dataroom_dir: str) -> list[dict]:
         })
     return documents
 
-
 # ─────────────────────────────────────────────────────────
 # BUILD CONTEXT STRING
 # ─────────────────────────────────────────────────────────
-# Concatenate all documents into one string.
-# Each document is labelled with its filename so Claude
-# can cite it accurately in answers.
 
 def build_context(documents: list[dict]) -> str:
     parts = []
@@ -68,8 +55,7 @@ def build_context(documents: list[dict]) -> str:
             f"Title: {doc['title']}\n\n"
             f"{doc['content']}"
         )
-    return "\n\n{'='*60}\n\n".join(parts)
-
+    return "\n\n" + "="*60 + "\n\n".join(parts)
 
 # ─────────────────────────────────────────────────────────
 # SYSTEM PROMPT
@@ -110,22 +96,14 @@ The complete dataroom follows below.
 {dataroom}
 """
 
-
 # ─────────────────────────────────────────────────────────
 # GENERATE ANSWER
 # ─────────────────────────────────────────────────────────
 
-def generate_answer(question: str,
-                    system: str,
+def generate_answer(question: str, system: str,
                     history: list[dict],
                     client: anthropic.Anthropic) -> str:
-    """
-    Send the question (plus conversation history) to Claude.
-    The entire dataroom is already in the system prompt.
-    """
-    # Build messages: prior conversation turns + new question
     messages = history + [{"role": "user", "content": question}]
-
     response = client.messages.create(
         model      = CHAT_MODEL,
         max_tokens = MAX_TOKENS,
@@ -134,36 +112,206 @@ def generate_answer(question: str,
     )
     return response.content[0].text
 
-
 # ─────────────────────────────────────────────────────────
-# STREAMLIT UI
+# STREAMLIT UI — ChatGPT style
 # ─────────────────────────────────────────────────────────
 
 def main():
     st.set_page_config(
-        page_title = "GAIL's Dataroom Assistant",
+        page_title = "GAIL's Dataroom",
         page_icon  = "🍞",
-        layout     = "wide"
+        layout     = "wide",
+        initial_sidebar_state = "expanded"
     )
 
-    # ── Header ────────────────────────────────────────────
+    # ── Global CSS ────────────────────────────────────────
     st.markdown("""
-    <div style='padding: 1.5rem 0 0.5rem 0;'>
-        <h1 style='margin:0; font-size:1.6rem; font-weight:700;'>
-            🍞 GAIL's Bakery — Dataroom Assistant
-        </h1>
-        <p style='margin:0.3rem 0 0 0; color:#666; font-size:0.9rem;'>
-            Ask questions about GAIL'S LIMITED (06055393) · Powered by Claude · Golborne Capital
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
+    <style>
+        /* Hide Streamlit default chrome */
+        #MainMenu, footer, header { visibility: hidden; }
+        .block-container {
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+            max-width: 100% !important;
+        }
 
-    st.divider()
+        /* Sidebar */
+        [data-testid="stSidebar"] {
+            background-color: #171717;
+            border-right: 1px solid #2a2a2a;
+        }
+        [data-testid="stSidebar"] * {
+            color: #d1d5db !important;
+        }
+        [data-testid="stSidebar"] h3 {
+            color: #ffffff !important;
+            font-size: 0.75rem !important;
+            font-weight: 600 !important;
+            letter-spacing: 0.08em !important;
+            text-transform: uppercase !important;
+            margin-bottom: 0.5rem !important;
+        }
+        [data-testid="stSidebar"] small {
+            color: #9ca3af !important;
+            font-size: 0.78rem !important;
+            line-height: 1.8 !important;
+        }
+        [data-testid="stSidebar"] hr {
+            border-color: #2a2a2a !important;
+            margin: 0.8rem 0 !important;
+        }
+
+        /* Sidebar buttons — example questions */
+        [data-testid="stSidebar"] .stButton > button {
+            background: transparent !important;
+            border: 1px solid #2a2a2a !important;
+            color: #9ca3af !important;
+            font-size: 0.78rem !important;
+            text-align: left !important;
+            padding: 0.4rem 0.6rem !important;
+            border-radius: 6px !important;
+            margin-bottom: 2px !important;
+            transition: all 0.15s !important;
+            white-space: normal !important;
+            height: auto !important;
+            line-height: 1.4 !important;
+        }
+        [data-testid="stSidebar"] .stButton > button:hover {
+            background: #1f1f1f !important;
+            border-color: #3a3a3a !important;
+            color: #e5e7eb !important;
+        }
+
+        /* Main area background */
+        .stApp {
+            background-color: #212121;
+        }
+
+        /* Chat messages */
+        [data-testid="stChatMessage"] {
+            background: transparent !important;
+            border: none !important;
+            padding: 0.75rem 0 !important;
+            max-width: 48rem;
+            margin: 0 auto;
+        }
+
+        /* User message bubble */
+        [data-testid="stChatMessage"][data-testid*="user"],
+        .stChatMessage:has([data-testid="chatAvatarIcon-user"]) {
+            background: #2f2f2f !important;
+            border-radius: 12px !important;
+            padding: 0.75rem 1rem !important;
+        }
+
+        /* Message text */
+        [data-testid="stChatMessage"] p,
+        [data-testid="stChatMessage"] li,
+        [data-testid="stChatMessage"] td,
+        [data-testid="stChatMessage"] th {
+            color: #ececec !important;
+            font-size: 0.95rem !important;
+            line-height: 1.7 !important;
+        }
+
+        /* Tables in answers */
+        [data-testid="stChatMessage"] table {
+            border-collapse: collapse !important;
+            width: 100% !important;
+            margin: 0.75rem 0 !important;
+            font-size: 0.85rem !important;
+        }
+        [data-testid="stChatMessage"] th {
+            background: #2f2f2f !important;
+            color: #e5e7eb !important;
+            font-weight: 600 !important;
+            padding: 0.5rem 0.75rem !important;
+            border: 1px solid #3a3a3a !important;
+        }
+        [data-testid="stChatMessage"] td {
+            padding: 0.45rem 0.75rem !important;
+            border: 1px solid #3a3a3a !important;
+            color: #d1d5db !important;
+        }
+        [data-testid="stChatMessage"] tr:nth-child(even) td {
+            background: #1a1a1a !important;
+        }
+
+        /* Code / source citations */
+        [data-testid="stChatMessage"] code {
+            background: #2f2f2f !important;
+            color: #a78bfa !important;
+            padding: 0.1rem 0.3rem !important;
+            border-radius: 4px !important;
+            font-size: 0.82rem !important;
+        }
+
+        /* Chat input */
+        [data-testid="stChatInput"] {
+            background: #2f2f2f !important;
+            border: 1px solid #3a3a3a !important;
+            border-radius: 12px !important;
+            max-width: 48rem !important;
+            margin: 0 auto !important;
+        }
+        [data-testid="stChatInput"] textarea {
+            color: #ececec !important;
+            background: transparent !important;
+            font-size: 0.95rem !important;
+        }
+        [data-testid="stChatInput"] textarea::placeholder {
+            color: #6b7280 !important;
+        }
+
+        /* Clear button */
+        .clear-btn .stButton > button {
+            background: transparent !important;
+            border: 1px solid #3a3a3a !important;
+            color: #6b7280 !important;
+            font-size: 0.78rem !important;
+            border-radius: 6px !important;
+            padding: 0.3rem 0.8rem !important;
+        }
+        .clear-btn .stButton > button:hover {
+            border-color: #ef4444 !important;
+            color: #ef4444 !important;
+        }
+
+        /* Status / success messages */
+        [data-testid="stAlert"] {
+            max-width: 48rem;
+            margin: 0 auto;
+        }
+
+        /* Metrics */
+        [data-testid="stMetric"] {
+            background: #2f2f2f;
+            border-radius: 8px;
+            padding: 0.6rem 1rem;
+        }
+        [data-testid="stMetric"] label {
+            color: #9ca3af !important;
+            font-size: 0.72rem !important;
+        }
+        [data-testid="stMetricValue"] {
+            color: #e5e7eb !important;
+            font-size: 1rem !important;
+        }
+
+        /* Spinner */
+        .stSpinner > div {
+            border-top-color: #7c3aed !important;
+        }
+    </style>
+    """, unsafe_allow_html=True)
 
     # ── Sidebar ───────────────────────────────────────────
     with st.sidebar:
-        st.markdown("### 📁 Dataroom Sources")
-        st.markdown("13 documents loaded:")
+        st.markdown("### 🍞 GAIL's Dataroom")
+        st.markdown("<small>GAIL'S LIMITED · 06055393</small>", unsafe_allow_html=True)
+        st.divider()
+
+        st.markdown("### Documents")
         doc_names = [
             "01 · Company Overview",
             "02 · FY2025 Financials",
@@ -183,18 +331,16 @@ def main():
             st.markdown(f"<small>{name}</small>", unsafe_allow_html=True)
 
         st.divider()
-        st.markdown("### 💡 Try asking:")
+        st.markdown("### Try asking")
         example_qs = [
             "What was revenue and EBITDA in the last reported year?",
-            "What charges are registered against the company and who holds them?",
+            "What charges are registered and who holds them?",
             "Who are the current directors?",
             "What are the key risks for a lender?",
             "Draft a short credit summary.",
             "Who owns GAIL's?",
             "How many sites does GAIL's operate?",
-            "What happened with the Goldman Sachs sale process?",
-            "What was the pre-tax loss in FY2025?",
-            "When was the Bain Capital acquisition and for how much?",
+            "What is GAIL's net debt?",
         ]
         for q in example_qs:
             if st.button(q, key=f"eg_{q[:25]}", use_container_width=True):
@@ -215,7 +361,7 @@ def main():
         api_key = os.environ.get("ANTHROPIC_API_KEY")
 
     if not api_key:
-        st.error("⚠️ No API key found. Set ANTHROPIC_API_KEY in Streamlit secrets.")
+        st.error("⚠️ No API key. Set ANTHROPIC_API_KEY in Streamlit secrets.")
         st.stop()
 
     client = anthropic.Anthropic(api_key=api_key)
@@ -224,49 +370,56 @@ def main():
     if "ready" not in st.session_state:
         st.session_state.ready            = False
         st.session_state.system_prompt    = None
-        st.session_state.messages         = []   # full chat history
+        st.session_state.messages         = []
         st.session_state.pending_question = None
         st.session_state.doc_count        = 0
         st.session_state.word_count       = 0
 
-    # ── Load documents (once at startup) ─────────────────
-    # This is fast — just reading text files from disk.
-    # No API calls needed at startup at all.
+    # ── Load documents once ───────────────────────────────
     if not st.session_state.ready:
-        with st.spinner("📚 Loading dataroom documents..."):
+        with st.spinner("Loading dataroom..."):
             try:
                 docs    = load_documents(DATAROOM_DIR)
                 context = build_context(docs)
                 system  = SYSTEM_PROMPT.format(dataroom=context)
-
                 st.session_state.system_prompt = system
                 st.session_state.ready         = True
                 st.session_state.doc_count     = len(docs)
                 st.session_state.word_count    = len(context.split())
-
-                st.success(
-                    f"✅ {len(docs)} documents loaded "
-                    f"({len(context.split()):,} words in context). "
-                    f"Ready to answer questions."
-                )
             except Exception as e:
                 st.error(f"Failed to load documents: {e}")
                 st.stop()
 
-    # ── Stats bar ─────────────────────────────────────────
-    if st.session_state.ready:
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Documents", st.session_state.doc_count)
-        col2.metric("Words in context", f"{st.session_state.word_count:,}")
-        col3.metric("Model", "claude-sonnet-4-6")
-        st.divider()
+    # ── Welcome screen (empty state) ──────────────────────
+    if not st.session_state.messages:
+        st.markdown("""
+        <div style='text-align:center; padding: 5rem 1rem 2rem 1rem;'>
+            <div style='font-size:2.5rem; margin-bottom:0.5rem;'>🍞</div>
+            <h2 style='color:#ececec; font-size:1.4rem; font-weight:600; margin:0 0 0.5rem 0;'>
+                GAIL's Bakery Dataroom
+            </h2>
+            <p style='color:#6b7280; font-size:0.9rem; max-width:28rem; margin:0 auto;'>
+                Ask questions about GAIL'S LIMITED — financials, charges, ownership,
+                risks, or request a credit summary. All answers cite their source.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Stats row
+        col1, col2, col3 = st.columns([1,1,1])
+        with col1:
+            st.metric("Documents", st.session_state.doc_count)
+        with col2:
+            st.metric("Words in context", f"{st.session_state.word_count:,}")
+        with col3:
+            st.metric("Company", "06055393")
 
     # ── Chat history ──────────────────────────────────────
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    # ── Handle sidebar button questions ──────────────────
+    # ── Pending question from sidebar ─────────────────────
     if st.session_state.get("pending_question"):
         question = st.session_state.pending_question
         st.session_state.pending_question = None
@@ -275,50 +428,44 @@ def main():
 
     # ── Process question ──────────────────────────────────
     if question and st.session_state.ready:
-        # Show user message
         st.session_state.messages.append({"role": "user", "content": question})
         with st.chat_message("user"):
             st.markdown(question)
 
-        # Generate and show answer
         with st.chat_message("assistant"):
-            with st.spinner("Reading dataroom and generating answer..."):
+            with st.spinner(""):
                 try:
-                    # Build history in Anthropic format (exclude current question
-                    # as it's added inside generate_answer)
                     history = [
                         {"role": m["role"], "content": m["content"]}
                         for m in st.session_state.messages[:-1]
                     ]
-
                     answer = generate_answer(
                         question,
                         st.session_state.system_prompt,
                         history,
                         client
                     )
-
                     st.markdown(answer)
-
-                    # Save assistant response to history
                     st.session_state.messages.append({
                         "role":    "assistant",
                         "content": answer
                     })
-
                 except Exception as e:
-                    err = f"Error generating answer: {e}"
+                    err = f"Error: {e}"
                     st.error(err)
                     st.session_state.messages.append({
-                        "role":    "assistant",
-                        "content": err
+                        "role": "assistant", "content": err
                     })
 
-    # ── Clear chat button ─────────────────────────────────
+    # ── Clear conversation ────────────────────────────────
     if st.session_state.messages:
-        if st.button("🗑️ Clear conversation", type="secondary"):
-            st.session_state.messages = []
-            st.rerun()
+        st.markdown('<div class="clear-btn">', unsafe_allow_html=True)
+        col1, col2, col3 = st.columns([3,1,3])
+        with col2:
+            if st.button("Clear chat", use_container_width=True):
+                st.session_state.messages = []
+                st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 
 
 if __name__ == "__main__":
