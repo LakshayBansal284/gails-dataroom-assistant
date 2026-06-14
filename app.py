@@ -129,6 +129,13 @@ def main():
     <style>
         /* Hide Streamlit default chrome */
         #MainMenu, footer, header { visibility: hidden; }
+        /* …but keep the control that re-opens a collapsed sidebar visible */
+        [data-testid="stSidebarCollapsedControl"] {
+            visibility: visible !important;
+        }
+        [data-testid="stSidebarCollapsedControl"] button {
+            color: #d1d5db !important;
+        }
         .block-container {
             padding-top: 0 !important;
             padding-bottom: 0 !important;
