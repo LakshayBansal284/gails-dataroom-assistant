@@ -127,14 +127,24 @@ def main():
     # ── Global CSS ────────────────────────────────────────
     st.markdown("""
     <style>
-        /* Hide Streamlit default chrome */
-        #MainMenu, footer, header { visibility: hidden; }
-        /* …but keep the control that re-opens a collapsed sidebar visible */
+        /* Hide Streamlit default chrome — but NOT the whole header, because the
+           ">" control that re-opens a collapsed sidebar lives inside it. */
+        #MainMenu, footer { visibility: hidden; }
+        [data-testid="stToolbar"],
+        [data-testid="stDecoration"],
+        [data-testid="stStatusWidget"] { display: none !important; }
+        header[data-testid="stHeader"] { background: transparent !important; }
+        /* Keep the collapsed-sidebar re-open control visible and styled */
         [data-testid="stSidebarCollapsedControl"] {
             visibility: visible !important;
+            display: block !important;
+            opacity: 1 !important;
+            pointer-events: auto !important;
         }
-        [data-testid="stSidebarCollapsedControl"] button {
+        [data-testid="stSidebarCollapsedControl"] button,
+        [data-testid="stSidebarCollapsedControl"] svg {
             color: #d1d5db !important;
+            fill: #d1d5db !important;
         }
         .block-container {
             padding-top: 0 !important;
