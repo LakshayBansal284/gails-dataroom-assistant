@@ -91,7 +91,9 @@ only ~£636k EBITDA — an artefact of intercompany transfer pricing with The Br
 Factory manufacturing entity. All financial analysis uses Grain Topco consolidated
 accounts, which is the correct basis for credit underwriting. Document 08 explains
 this distinction explicitly so the assistant can surface it when relevant.
+
 ---
+
 
 ## Tech Stack
 
@@ -102,7 +104,7 @@ this distinction explicitly so the assistant can surface it when relevant.
 | Deployment | Streamlit Cloud |
 | Vector DB | None needed |
 | Embeddings | None needed |
-| Total | |
+
 
 ---
 
