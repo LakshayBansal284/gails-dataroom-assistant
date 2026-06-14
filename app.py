@@ -134,17 +134,26 @@ def main():
         [data-testid="stDecoration"],
         [data-testid="stStatusWidget"] { display: none !important; }
         header[data-testid="stHeader"] { background: transparent !important; }
-        /* Keep the collapsed-sidebar re-open control visible and styled */
-        [data-testid="stSidebarCollapsedControl"] {
+        /* Keep the collapsed-sidebar re-open control (">") visible and on top.
+           Cover both old and new Streamlit test-ids. */
+        [data-testid="stSidebarCollapsedControl"],
+        [data-testid="collapsedControl"] {
             visibility: visible !important;
             display: block !important;
             opacity: 1 !important;
             pointer-events: auto !important;
+            z-index: 999999 !important;
         }
+        /* Force the chevron icon white so it isn't lost on the black header */
         [data-testid="stSidebarCollapsedControl"] button,
-        [data-testid="stSidebarCollapsedControl"] svg {
-            color: #d1d5db !important;
-            fill: #d1d5db !important;
+        [data-testid="stSidebarCollapsedControl"] svg,
+        [data-testid="stSidebarCollapsedControl"] svg path,
+        [data-testid="collapsedControl"] button,
+        [data-testid="collapsedControl"] svg,
+        [data-testid="collapsedControl"] svg path {
+            color: #ffffff !important;
+            fill: #ffffff !important;
+            stroke: #ffffff !important;
         }
         .block-container {
             padding-top: 0 !important;
