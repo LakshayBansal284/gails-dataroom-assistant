@@ -1,7 +1,5 @@
 # GAIL's Bakery — Dataroom AI Assistant
-**Golborne Capital · AI Engineer Intern Case Study**
-
-A RAG-powered AI assistant over a structured dataroom for GAIL'S LIMITED (Companies House: 06055393).
+**Golborne Capital · AI Engineer Intern Case Study | Lakshay Bansal**
 
 ---
 
@@ -12,56 +10,67 @@ A RAG-powered AI assistant over a structured dataroom for GAIL'S LIMITED (Compan
 
 ## What It Does
 
-Ask natural language questions about GAIL's Bakery and receive accurate answers with source citations drawn from a 13-document dataroom of publicly available information.
+A natural language assistant over a structured 13-document dataroom for GAIL'S LIMITED
+(Companies House: 06055393), a UK premium artisan bakery chain trading as GAIL's Bakery.
 
-**Example questions it can answer:**
+Ask questions in plain English and receive accurate answers with source citations drawn
+directly from public filings and attributed press reporting.
+
+**Example questions:**
 - What was revenue and EBITDA in the last reported year?
 - What charges are registered against the company and who holds them?
 - Who are the current directors and when were they appointed?
 - What are the key risks for a lender?
 - Draft a short credit summary of the business.
-- Who owns GAIL's and what is the ownership structure?
+- What is GAIL's net debt? ← correctly says the dataroom doesn't contain this
 
 ---
 
 ## Architecture
 
 ```
-User question
-     ↓
-Anthropic Voyage embedding (voyage-3 model)
-     ↓
-ChromaDB cosine similarity search → top-5 relevant chunks
-     ↓
-Claude claude-sonnet-4-6 generates answer using only retrieved chunks
-     ↓
-Answer with source citations displayed in Streamlit UI
+User types a question
+        ↓
+All 13 dataroom documents loaded into Claude's context window (~7,500 words)
+        ↓
+Claude reads the complete dataroom and generates an answer
+        ↓
+Answer returned with [Source: filename.md] citations
 ```
 
-### Why RAG?
-Rather than stuffing the entire dataroom into every prompt (expensive, imprecise), the app:
-1. At startup: splits all 13 documents into ~400-word chunks with 50-word overlap, embeds each chunk, stores in ChromaDB
-2. At query time: embeds the question, retrieves the 5 most semantically similar chunks, sends only those to Claude
+### Why full-context retrieval, not RAG
 
-This ensures financial figures come from the exact filed source, not from model memory — critical for accuracy.
+RAG exists to solve one problem: the knowledge base is too large to fit in a prompt.
 
-### Why Anthropic Voyage embeddings?
-- Free tier covers all development and demo use
-- Same API key as Claude — no separate service
-- voyage-3 is specifically optimised for retrieval tasks
+The complete dataroom is approximately 7,500 words.
+Claude's context window holds over 150,000 words.
+The dataroom fits in under 5% of the available space.
+The size problem does not exist.
 
-### Handling financial accuracy
-- All numerical figures are sourced from filed Companies House accounts (Grain Topco consolidated) or attributed press
-- Claude is instructed via system prompt to quote figures exactly as they appear in source documents
-- Claude is instructed to say "the dataroom does not contain this information" rather than guess
-- The `[Source: filename]` citation pattern makes every figure traceable
+Sending the complete dataroom on every query means:
+
+- Claude always has access to every document simultaneously
+- Financial figures are read directly from the filed source text — the actual
+  accounts are in the prompt, making hallucination extremely difficult
+- Cross-document reasoning works naturally — a question about lender risks
+  draws from charges, financials, ownership and news all at once
+- No embedding model, no vector database, no second API key required
+- Startup is instant — just reading text files, no API calls at startup
+- Nothing to break during a live demo
+
+At the scale of this dataroom, full-context retrieval is strictly superior to RAG
+on every dimension that matters: accuracy, reliability, simplicity, and cost.
+
+RAG would be introduced if the dataroom grew beyond ~50 documents (~100,000+ words),
+at which point chunking, embedding (Voyage-3), and vector search (ChromaDB) would
+be added as a retrieval layer in front of the same generation logic.
 
 ---
 
 ## Dataroom (13 documents)
 
-| # | Document | Source |
-|---|----------|--------|
+| # | Document | Primary Source |
+|---|----------|----------------|
 | 01 | Company Overview | Companies House (06055393) |
 | 02 | FY2025 Financials | Grain Topco accounts (filed Nov 2025); British Baker; The Grocer |
 | 03 | FY2024 Financials | Grain Topco accounts (filed Nov 2024) |
@@ -70,11 +79,18 @@ This ensures financial figures come from the exact filed source, not from model 
 | 06 | Ownership & Management | Companies House PSC + officers; Bain Capital press release |
 | 07 | News & Events | British Baker; Sky News; Bloomberg; Wikipedia |
 | 08 | Subsidiary Accounts Note | Companies House; UK.GlobalDatabase |
-| 09 | Lender Risks | Compiled analysis |
-| 10 | Credit Summary | Compiled analysis |
+| 09 | Lender Risks | Compiled from all sources |
+| 10 | Credit Summary | Compiled from all sources |
 | 11 | Bain Capital Acquisition | Bain Capital press release; Willkie Farr |
 | 12 | Sale Process & Valuation | Sky News; Bloomberg; The Grocer |
 | 13 | Dataroom Index | This research |
+
+### Key dataroom decision
+GAIL'S LIMITED files as an audit-exempt subsidiary. Its standalone accounts show
+only ~£636k EBITDA — an artefact of intercompany transfer pricing with The Bread
+Factory manufacturing entity. All financial analysis uses Grain Topco consolidated
+accounts, which is the correct basis for credit underwriting. Document 08 explains
+this distinction explicitly so the assistant can surface it when relevant.
 
 ---
 
@@ -82,53 +98,58 @@ This ensures financial figures come from the exact filed source, not from model 
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/YOUR_USERNAME/gails-dataroom-assistant
-cd gails-dataroom-assistant
+git clone https://github.com/LakshayBansal284/gails-dataroom-assisstant
+cd gails-dataroom-assisstant
 
 # 2. Install dependencies
 pip install -r requirements.txt
 
 # 3. Add your Anthropic API key
+mkdir .streamlit
 echo 'ANTHROPIC_API_KEY = "sk-ant-your-key-here"' > .streamlit/secrets.toml
 
 # 4. Run
 streamlit run app.py
 ```
 
-The app opens at http://localhost:8501
+Opens at http://localhost:8501
 
 ---
 
 ## Deploying to Streamlit Cloud
 
-1. Push this repo to GitHub (make sure it's public)
-2. Go to [share.streamlit.io](https://share.streamlit.io)
-3. Sign in with GitHub → New app → select this repo → `app.py`
-4. Under **Advanced settings → Secrets**, add:
+1. Push repo to GitHub (public)
+2. Go to share.streamlit.io → sign in with GitHub → New app
+3. Select this repo → Main file: `app.py`
+4. Advanced settings → Secrets → add:
    ```toml
-   ANTHROPIC_API_KEY = "sk-ant-your-actual-key"
+   ANTHROPIC_API_KEY = "sk-ant-your-key-here"
    ```
-5. Click Deploy
-
----
-
-## What I Would Build With More Time
-
-1. **PDF ingestion** — ingest the actual Companies House PDFs directly rather than transcribed markdown, using a PDF parser (pypdf or pdfplumber) to extract text page by page
-2. **Persistent vector store** — save the ChromaDB index to disk between sessions so it doesn't rebuild on every cold start
-3. **Conversation memory** — pass prior turns back to Claude so the user can ask follow-up questions ("and what about FY2024?")
-4. **Hybrid search** — combine semantic similarity search (current) with keyword/BM25 search for exact figure lookups (e.g. "£53.6m")
-5. **Document refresh pipeline** — a script that checks Companies House for new filings and updates the dataroom automatically
-6. **Confidence scoring** — surface the retrieval similarity scores more prominently so users can see how confident the retrieval was
-7. **Table-aware chunking** — current word-count chunking can split markdown tables mid-row; a smarter chunker would keep tables intact
+5. Deploy — live URL ready in ~2 minutes
 
 ---
 
 ## Tech Stack
-- **Language:** Python 3.11
-- **Web framework:** Streamlit
-- **LLM:** Anthropic Claude (claude-sonnet-4-6)
-- **Embeddings:** Anthropic Voyage (voyage-3)
-- **Vector database:** ChromaDB (in-memory)
-- **Deployment:** Streamlit Cloud
-- **Cost:** £0 (all free tiers)
+
+| Component | Tool | Cost |
+|-----------|------|------|
+| LLM | Anthropic Claude (claude-sonnet-4-6) | Free tier / low cost |
+| Web framework | Streamlit | Free |
+| Deployment | Streamlit Cloud | Free |
+| Vector DB | None needed | — |
+| Embeddings | None needed | — |
+| Total | | ~£0 |
+
+---
+
+## What I Would Build Further
+
+- **RAG at scale** — introduce chunking, Voyage-3 embeddings, and ChromaDB retrieval
+  if the dataroom grew beyond ~50 documents
+- **PDF ingestion** — ingest Companies House PDFs directly via pdfplumber rather than
+  transcribed markdown; enables automatic refresh on new filings
+- **Structured data layer** — store financial tables as JSON for guaranteed numerical
+  precision on exact figure lookups
+- **Streaming responses** — word-by-word answer rendering for better UX on longer outputs
+- **Document refresh alerts** — daily check for new Companies House filings;
+  next accounts due 30 November 2026 (year to 28 February 2026)
